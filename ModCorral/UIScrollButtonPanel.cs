@@ -46,15 +46,15 @@ namespace ModCorral
             return;
          }
 
-         this.width = 383;
-         this.height = 903 - this.relativePosition.y - 5;
+         this.width = ModCorralUI.GeneralWidth;
+         this.height = ModCorralUI.GeneralHeight - this.relativePosition.y - 5;
          this.isVisible = true;
          this.isEnabled = true;
          this.canFocus = true;
          this.isInteractive = true;
          //this.builtinKeyNavigation = true;
          this.autoLayout = false;
-         this.clipChildren = true; //temp
+         this.clipChildren = false; //temp
          int inset = 5;
 
          Log.Message("uiscrollbuttonpanel widht=" + this.width.ToString());
@@ -62,7 +62,7 @@ namespace ModCorral
          ScrollPanel.relativePosition = new Vector3(inset, inset, 0);
          ScrollPanel.backgroundSprite = "GenericPanel";
          ScrollPanel.autoSize = false;
-         ScrollPanel.width = (383 - 25 - 4 * inset);
+         ScrollPanel.width = (ModCorralUI.GeneralWidth - 25 - 4 * inset);
          ScrollPanel.height = (this.height - ScrollPanel.relativePosition.y - inset);
          ScrollPanel.autoLayout = true;
          ScrollPanel.isInteractive = true;
@@ -74,7 +74,7 @@ namespace ModCorral
          ScrollPanel.autoLayoutPadding = new RectOffset(2, 2, 2, 2);
          ScrollPanel.autoLayoutStart = LayoutStart.TopLeft;
 
-         //ScrollPanel.builtinKeyNavigation = true;//conflicts with onkeypress?
+         ScrollPanel.builtinKeyNavigation = true;//conflicts with onkeypress?
          ScrollPanel.scrollWithArrowKeys = false;
 
          //ScrollPanel.freeScroll = true;
@@ -82,7 +82,7 @@ namespace ModCorral
 
          ScrollBar.useGUILayout = true;
 
-         ScrollBar.width = 25;//?
+         ScrollBar.width = 20;//?25
          ScrollBar.height = ScrollPanel.height;
          ScrollBar.orientation = UIOrientation.Vertical;
          ScrollBar.isInteractive = true;
@@ -114,7 +114,7 @@ namespace ModCorral
          ScrollPanel.enabled = true;
       }
 
-      public UIButton AddAButton(string name, string text, string hovertext, Action<string> modCallback)
+      public UIButton AddAButton(string name, string text, string hovertext, Action<string> modCallback, string spritename, Texture2D texture)
       {
          Log.Message("adding button " + name + text + "    scrollpanelwidth=" + ScrollPanel.width.ToString());
 
@@ -123,28 +123,57 @@ namespace ModCorral
          string uniquename = string.Format("{0}_{1}", name, text);
          retval.name = uniquename;
          retval.cachedName = uniquename;
-         retval.text = text;
+
+         if (spritename == null)
+         {
+            retval.text = text;
+            retval.textPadding = new RectOffset(5, 5, 2, 2);
+            retval.textHorizontalAlignment = UIHorizontalAlignment.Left;
+            retval.normalBgSprite = "ButtonMenu";
+            retval.hoveredBgSprite = "ButtonMenuHovered";
+            retval.pressedBgSprite = "ButtonMenuPressed";
+         }
+         else
+         {
+            if (texture != null)
+            {
+               retval.atlas = CreateAtlas(spritename, texture);
+            }
+
+            retval.normalFgSprite = spritename;
+            retval.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
+            retval.hoveredColor = new Color32(0, 255, 0, 255);
+         }
+
          retval.tooltip = hovertext;
-         retval.tooltipAnchor = UITooltipAnchor.Anchored;
+         retval.tooltipAnchor = UITooltipAnchor.Floating;
          
          retval.autoSize = false;
          
-         retval.height = 33;
-         retval.width = (383 - 25 - 4 * 5) - 4;
-         retval.textPadding = new RectOffset(5, 5, 2, 2);
-         retval.textHorizontalAlignment = UIHorizontalAlignment.Left;
-         retval.normalBgSprite = "ButtonMenu";
-         retval.hoveredBgSprite = "ButtonMenuHovered";
-         retval.pressedBgSprite = "ButtonMenuPressed";
+         if (spritename == null)
+         {
+            retval.height = 33;
+            retval.width = (ModCorralUI.GeneralWidth - 25 - 4 * 5) - 4;
+         }
+         else
+         {
+            retval.height = 50;
+            retval.width = 50;
+         }
+
+         
          retval.enabled = true;
          retval.isInteractive = true;
          retval.isVisible = true;
 
          retval.eventClick += (component, param) => 
-         {
+         {            
             try
             {
-               modCallback(component.name);
+               if (modCallback != null)
+               {
+                  modCallback(component.name);
+               }
             }
             catch (Exception ex)
             {
@@ -166,6 +195,37 @@ namespace ModCorral
             this.RemoveUIComponent(foundButton);
             UnityEngine.Object.Destroy(foundButton);
          }
+      }
+
+      UITextureAtlas CreateAtlas(string spriteName, Texture2D spriteTexture)
+      {
+         Texture2D atlasTex = new Texture2D(1024, 1024, TextureFormat.ARGB32, false);
+
+         Texture2D[] textures = new Texture2D[1];
+         Rect[] rects = new Rect[1];
+
+         textures[0] = spriteTexture;
+
+         rects = atlasTex.PackTextures(textures, 2, 1024);
+
+         UITextureAtlas atlas = ScriptableObject.CreateInstance<UITextureAtlas>();
+
+         Material material = (Material)Material.Instantiate(UIView.GetAView().defaultAtlas.material);
+         material.mainTexture = atlasTex;
+
+         atlas.material = material;
+         atlas.name = spriteName + "_atlas";
+
+         UITextureAtlas.SpriteInfo spriteInfo = new UITextureAtlas.SpriteInfo()
+         {
+            name = spriteName,
+            texture = atlasTex,
+            region = rects[0]
+         };
+
+         atlas.AddSprite(spriteInfo);
+
+         return atlas;
       }
    }
 }

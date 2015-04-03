@@ -14,6 +14,9 @@ namespace ModCorral
    {
       public static UIButton mcButton = null;
       public static ModCorralUI mcPanel = null;
+      public static UIPanel TabPanel = null;
+      public static float StartingAbsPosY = 0f;
+      public static float StartingAbsPosX = 0f;
 
       // constructor gets instantiated before any extensions are called
       public ModCorral()
@@ -45,8 +48,10 @@ namespace ModCorral
 
       public void OnLevelLoaded(LoadMode mode)
       {
+         Log.Message("corral mod: onlevelloaded" + mode.ToString());
+
          if (mode == LoadMode.LoadGame || mode == LoadMode.NewGame)
-         {
+         {                      
             if (mcButton == null) // if not created yet
             {
                // add button to the end of the TSBar MainToolstrip (UITabStrip) 
@@ -63,10 +68,29 @@ namespace ModCorral
                      UIButton policiesButton = ts.Find<UIButton>("Policies"); // we use this as a template to get 'most' of what we need set up                
                      mcButton = ts.AddTab("ModCorral", policiesButton, false);
 
+                     // find the panel added in the ts tabcontainer
+                     foreach (UIComponent c in ts.tabContainer.components)
+                     {
+                        if (c.name.Contains("ModCorral"))
+                        {
+                           Log.Message("found tab panel");
+                           TabPanel = c as UIPanel;
+                           c.clipChildren = false;
+                           c.opacity = 0; // otherwise our panel gets clicks obscured when it's in the same place...
+                           
+                           break;
+                        }
+                     }
+
+                     // initial position info
+                     StartingAbsPosY = ts.absolutePosition.y - 20; // get rid of hardcoded 20...
+
                      ts.eventSelectedIndexChanged += ts_eventSelectedIndexChanged;
 
                      if (mcButton != null)
                      {
+                        StartingAbsPosX = mcButton.absolutePosition.x;
+
                         mcButton.tooltip = "Open Mod Corral";
                         mcButton.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
                         mcButton.scaleFactor = 0.6f; // to fit a little better when using options sprites
@@ -76,7 +100,8 @@ namespace ModCorral
                         mcButton.pressedFgSprite = "OptionsPressed";
                         mcButton.disabledFgSprite = "OptionsDisabled";
                         mcButton.eventClick += mcButton_eventClick;
-
+                        mcButton.clipChildren = false;
+                        
                         UIPanel fscont = uiv.FindUIComponent<UIPanel>("FullScreenContainer");
 
                         if (fscont != null)
@@ -88,7 +113,7 @@ namespace ModCorral
                            Log.Message("no fullscreencontainer");
 
                         if (mcPanel != null)
-                        {
+                        {                           
                            mcPanel.transform.parent = fscont.transform;
                            mcPanel.initialize();
                            //mcPanel.anchor = UIAnchorStyle.All;
@@ -100,7 +125,7 @@ namespace ModCorral
                               {
                                  if (mri.ModButton == null)
                                  {
-                                    mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri.ModName, mri.ButtonText, mri.HoverText, mri.ClickCallback);
+                                    mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri.ModName, mri.ButtonText, mri.HoverText, mri.ClickCallback, mri.SpriteName, mri.SpriteTexture);
                                  }
                               }
                            }
@@ -158,6 +183,15 @@ namespace ModCorral
 
       public void OnLevelUnloading()
       {
+         Log.Message("corral mod onlevelunloading...");
+
+         if (CorralRegistration.RegisteredMods != null)
+         {
+            CorralRegistration.RegisteredMods.Clear();
+
+            // add our config button
+            CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, "Options", null); // need a callback...
+         }
       }
 
       public void OnReleased()
@@ -173,6 +207,9 @@ namespace ModCorral
       public string HoverText;
       public UIButton ModButton;
       public Action<string> ClickCallback;
+
+      public string SpriteName;
+      public Texture2D SpriteTexture;
    }
 
    public class CorralRegistration : MonoBehaviour
@@ -205,14 +242,16 @@ namespace ModCorral
       // array must be of the form:
       // [0] - string name of mod
       // [1] - string button text
-      // [3] - string hover text
-      // [4] - Action<string> delegate 
+      // [2] - string hover text
+      // [3] - Action<string> delegate 
+      // [4] - optional spritename (either builtin or custom)
+      // [5] - optional texture2d for spritename
       //
       public void RegisterMod(object[] paramArray)
       {
          try
          {
-            if (paramArray == null || paramArray.Length != 4)
+            if (paramArray == null || !(paramArray.Length == 4 || paramArray.Length == 6))
             {
                return;
             }
@@ -227,12 +266,21 @@ namespace ModCorral
                return;
             }
 
-            Register(p0, p1, p2, p3);
+            string p4 = null;
+            Texture2D p5 = null;
 
-            ////temp
-            //Register("one", "onetext", "one hover", null);
-            //Register("two", "twotext", "two hover", null);
-            ////temp
+            if (paramArray.Length == 6)
+            {
+               p4 = paramArray[4] as string;
+               p5 = paramArray[5] as Texture2D;
+
+               if (p4 == null)
+               {
+                  return;
+               }
+            }
+
+            Register(p0, p1, p2, p3, p4, p5);
          }
          catch(Exception ex)
          {
@@ -272,7 +320,7 @@ namespace ModCorral
       }
 
 
-      public bool Register(string modName, string buttonText, string hoverText, Action<string> callback)
+      public bool Register(string modName, string buttonText, string hoverText, Action<string> callback, string spritename, Texture2D texture)
       {
          Log.Message(string.Format("CorralRegistration.Register()"));
 
@@ -292,12 +340,12 @@ namespace ModCorral
             }
 
             // register it
-            ModRegistrationInfo newMRI = new ModRegistrationInfo { ModName = modName, ButtonText = buttonText, HoverText = hoverText, ClickCallback = callback };
+            ModRegistrationInfo newMRI = new ModRegistrationInfo { ModName = modName, ButtonText = buttonText, HoverText = hoverText, ClickCallback = callback, SpriteName = spritename, SpriteTexture = texture };
             
             // create new button...
             if (ModCorral.mcPanel != null)
             {
-               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(modName, buttonText, hoverText, newMRI.ClickCallback);
+               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(modName, buttonText, hoverText, newMRI.ClickCallback, newMRI.SpriteName, newMRI.SpriteTexture);
             }
 
             RegisteredMods.Add(newMRI);
@@ -369,6 +417,9 @@ namespace ModCorral
          {
             g_instance = this as CorralRegistration;
          }
+
+         // add our config button
+         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, "Options", null); // need a callback...
 
          Log.Message("Mod Corral is awake and listening for registrations.");
       }

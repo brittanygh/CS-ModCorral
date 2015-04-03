@@ -55,8 +55,16 @@ namespace ModCorral
 
          int inset = 5;
 
-         Title.relativePosition = new Vector3(inset, inset);
-         Title.text = "Mod Corral"; 
+         Title.relativePosition = Vector3.zero;//new Vector3(inset, inset);
+         Title.autoSize = false;
+         Title.width = this.width - CloseButton.width - inset;
+         Title.height = this.height;
+         Title.text = Locale.Get(LocaleID.CONTENTMANAGER_MODS);//"Mod Corral";
+         //Title.textScale = 0.9f;
+
+         Title.textAlignment = UIHorizontalAlignment.Left;
+         Title.verticalAlignment = UIVerticalAlignment.Middle;
+         Title.padding = new RectOffset(inset, inset, inset, inset);
 
          CloseButton.normalBgSprite = "buttonclose";
          CloseButton.hoveredBgSprite = "buttonclosehover";
@@ -69,6 +77,7 @@ namespace ModCorral
          DragHandle.height = this.height;
          DragHandle.width = this.width - 50;
          DragHandle.relativePosition = Vector3.zero;
+         DragHandle.constrainToScreen = true;         
       }
    }
 }

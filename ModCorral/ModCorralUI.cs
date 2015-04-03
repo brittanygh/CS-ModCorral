@@ -12,7 +12,13 @@ namespace ModCorral
    {
       public static float m_SafeMargin = 20f;
       public static float m_ShowHideTime = 0.3f;
+
+      public static int GeneralWidth = 125;
+      public static int GeneralHeight = 250;
+
       public bool m_Initialized = false;
+      public bool isHiding = false;
+
       public Vector3 normalDisplayRelPos = Vector3.zero;
 
       public UITitleSubPanel TitleSubPanel;
@@ -21,22 +27,28 @@ namespace ModCorral
       public Vector3 SavedCloseButtonPos;
       public UIButton CloseToolbarButton;
 
+      public AudioClip m_SwooshInSound;
+      public AudioClip m_SwooshOutSound;
+      
       public void initialize()
       {
          float viewWidth = UIView.GetAView().GetScreenResolution().x;
          float viewHeight = UIView.GetAView().GetScreenResolution().y;
 
-         this.size = new Vector2(383, 903);
-         this.width = 383;
-         this.height = 903;
-         this.normalDisplayRelPos = new Vector3(viewWidth  - this.size.x, viewHeight - this.size.y, 0f);
-         this.relativePosition = normalDisplayRelPos;
+         this.size = new Vector2(GeneralWidth, GeneralHeight);
+         this.width = GeneralWidth;
+         this.height = GeneralHeight;
+
+         this.absolutePosition = new Vector3(ModCorral.StartingAbsPosX, ModCorral.StartingAbsPosY - GeneralHeight, 0);
+         this.normalDisplayRelPos = this.relativePosition;//new Vector3(viewWidth  - this.size.x, viewHeight - this.size.y, 0f);
+         //this.relativePosition = normalDisplayRelPos;
 
          this.backgroundSprite = "MenuPanel";
 
          this.clipChildren = false;
          this.canFocus = true;
          this.isInteractive = true;
+         this.eventPositionChanged += (component, eventParam) => { if (!isHiding && isVisible) this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition; };
 
          float inset = 5f;
 
@@ -52,6 +64,14 @@ namespace ModCorral
          ScrollPanel.relativePosition = new Vector3(inset, TitleSubPanel.relativePosition.y + TitleSubPanel.height + inset);
          ScrollPanel.width = this.width;
          ScrollPanel.height = this.height - ScrollPanel.relativePosition.y - inset;
+
+         PoliciesPanel pp = UIView.GetAView().GetComponentInChildren<PoliciesPanel>();
+
+         if (pp != null)
+         {
+            m_SwooshInSound = pp.m_SwooshInSound;
+            m_SwooshOutSound = pp.m_SwooshOutSound;
+         }
 
          m_Initialized = true;
       }
@@ -96,10 +116,13 @@ namespace ModCorral
             return;
          }
 
+         isHiding = false;
+
          TitleSubPanel.CloseButton.Hide();         
 
-         float num = this.normalDisplayRelPos.x + this.size.x;
-         float end = num - size.x;
+         // pop in from  below
+         float num = this.normalDisplayRelPos.y + this.size.y;
+         float end = num - size.y;
          float start = num + m_SafeMargin;
 
          this.Show();
@@ -115,13 +138,14 @@ namespace ModCorral
          ValueAnimator.Animate(this.GetType().ToString(), (Action<float>)(val =>
          {
             Vector3 relativePosition = this.relativePosition;
-            relativePosition.x = val;
-            relativePosition.y = this.normalDisplayRelPos.y;
+            relativePosition.y = val;
+            relativePosition.x = this.normalDisplayRelPos.x;
             this.relativePosition = relativePosition;
             this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut));
 
-         //Singleton<AudioManager>.instance.PlaySound(this.m_SwooshInSound, 1f);
+         Singleton<AudioManager>.instance.PlaySound(this.m_SwooshInSound, 1f);
+
       }
 
       public void HideMe()
@@ -133,8 +157,11 @@ namespace ModCorral
             return;
          }
 
-         float num = this.normalDisplayRelPos.x + this.size.x;
-         float start = num - size.x;
+         isHiding = true;
+
+         // hide by moving down
+         float num = this.normalDisplayRelPos.y + this.size.y;
+         float start = num - size.y;
          float end = num + m_SafeMargin;
 
          //Log.Message("mcbutton state: " + ModCorral.mcButton.state.ToString());
@@ -150,13 +177,18 @@ namespace ModCorral
          ValueAnimator.Animate(this.GetType().ToString(), (Action<float>)(val =>
          {
             Vector3 relativePosition = this.relativePosition;
-            relativePosition.x = val;
-            relativePosition.y = this.normalDisplayRelPos.y;
+            relativePosition.y = val;
+            relativePosition.x = this.normalDisplayRelPos.x;
             this.relativePosition = relativePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut), (Action)(() => this.Hide()));
 
          this.TitleSubPanel.CloseButton.Show();
          this.CloseToolbarButton.absolutePosition = this.SavedCloseButtonPos;
+
+         //if (!this.component.isVisible || !this.m_EnableAudio || (!Singleton<AudioManager>.exists || !((UnityEngine.Object)this.m_SwooshOutSound != (UnityEngine.Object)null)))
+         //   return;
+         Singleton<AudioManager>.instance.PlaySound(this.m_SwooshOutSound, 1f);
       }
+
    }
 }
