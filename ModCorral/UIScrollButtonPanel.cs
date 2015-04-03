@@ -57,7 +57,7 @@ namespace ModCorral
          this.clipChildren = true; //temp
          int inset = 5;
 
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "uiscrollbuttonpanel widht=" + this.width.ToString());
+         Log.Message("uiscrollbuttonpanel widht=" + this.width.ToString());
 
          ScrollPanel.relativePosition = new Vector3(inset, inset, 0);
          ScrollPanel.backgroundSprite = "GenericPanel";
@@ -114,9 +114,9 @@ namespace ModCorral
          ScrollPanel.enabled = true;
       }
 
-      public UIButton AddAButton(string name, string text, string hovertext)
+      public UIButton AddAButton(string name, string text, string hovertext, Action<string> modCallback)
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "adding button " + name + text + "    scrollpanelwidth=" + ScrollPanel.width.ToString());
+         Log.Message("adding button " + name + text + "    scrollpanelwidth=" + ScrollPanel.width.ToString());
 
          UIButton retval = ScrollPanel.AddUIComponent<UIButton>();
 
@@ -124,9 +124,12 @@ namespace ModCorral
          retval.name = uniquename;
          retval.cachedName = uniquename;
          retval.text = text;
+         retval.tooltip = hovertext;
+         retval.tooltipAnchor = UITooltipAnchor.Anchored;
+         
          retval.autoSize = false;
          
-         retval.height = 32;
+         retval.height = 33;
          retval.width = (383 - 25 - 4 * 5) - 4;
          retval.textPadding = new RectOffset(5, 5, 2, 2);
          retval.textHorizontalAlignment = UIHorizontalAlignment.Left;
@@ -137,7 +140,20 @@ namespace ModCorral
          retval.isInteractive = true;
          retval.isVisible = true;
 
-         retval.eventClick += (component, param) => { ParentPanel.HideMe(); };
+         retval.eventClick += (component, param) => 
+         {
+            try
+            {
+               modCallback(component.name);
+            }
+            catch (Exception ex)
+            {
+               Log.Error(string.Format("Exception in callback to Mod: {0}. Exception: {1}", component.name, ex.Message));
+            }
+
+            ModCorral.mcButton.SimulateClick();
+         };
+
          return retval;
       }
 

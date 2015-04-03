@@ -40,7 +40,7 @@ namespace ModCorral
       public void OnCreated(ILoading loading)
       {
         
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "modcorral.oncreated");
+         Log.Message("modcorral.oncreated");
       }
 
       public void OnLevelLoaded(LoadMode mode)
@@ -58,11 +58,13 @@ namespace ModCorral
 
                   if (ts != null)
                   {
-                     DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "found maintoolstrip");
+                     Log.Message("found maintoolstrip");
 
                      UIButton policiesButton = ts.Find<UIButton>("Policies"); // we use this as a template to get 'most' of what we need set up                
                      mcButton = ts.AddTab("ModCorral", policiesButton, false);
-                     
+
+                     ts.eventSelectedIndexChanged += ts_eventSelectedIndexChanged;
+
                      if (mcButton != null)
                      {
                         mcButton.tooltip = "Open Mod Corral";
@@ -83,7 +85,7 @@ namespace ModCorral
                            mcPanel = (ModCorralUI)fscont.AddUIComponent(typeof(ModCorralUI));
                         }
                         else
-                           DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "no fullscreencontainer");
+                           Log.Message("no fullscreencontainer");
 
                         if (mcPanel != null)
                         {
@@ -98,7 +100,7 @@ namespace ModCorral
                               {
                                  if (mri.ModButton == null)
                                  {
-                                    mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri.ModName, mri.ButtonText, mri.HoverText);
+                                    mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri.ModName, mri.ButtonText, mri.HoverText, mri.ClickCallback);
                                  }
                               }
                            }
@@ -109,7 +111,37 @@ namespace ModCorral
                   }
                   else
                   {
-                     DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "failed to find maintoolstrip");
+                     Log.Message("failed to find maintoolstrip");
+                  }
+               }
+            }
+         }
+      }
+
+      public void ts_eventSelectedIndexChanged(UIComponent component, int selectedIndex)
+      {
+         Log.Message("selected index: " + selectedIndex.ToString());
+
+         UITabstrip ts = component as UITabstrip;
+
+         if (ts != null)
+         {
+            if (selectedIndex == -1)
+            {
+               if (mcPanel.isVisible)
+               {
+                  mcPanel.HideMe();
+               }
+            }
+            else
+            {
+               UIButton button = ts.tabs[selectedIndex] as UIButton; // this should be a button
+
+               if (button != null)
+               {
+                  if (button != mcButton && mcPanel.isVisible) // currently selected button is not us, but we're still visible...
+                  {
+                     mcPanel.HideMe();
                   }
                }
             }
@@ -204,7 +236,7 @@ namespace ModCorral
          }
          catch(Exception ex)
          {
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, string.Format("Exception in CorralRegistration.RegisterMod(): {0}", ex.Message));
+            Log.Error(string.Format("Exception in CorralRegistration.RegisterMod(): {0}", ex.Message));
          }
       }
 
@@ -235,14 +267,14 @@ namespace ModCorral
          }
          catch (Exception ex)
          {
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, string.Format("Exception in CorralRegistration.DeRegisterMod(): {0}", ex.Message));
+            Log.Error(string.Format("Exception in CorralRegistration.DeRegisterMod(): {0}", ex.Message));
          }
       }
 
 
       public bool Register(string modName, string buttonText, string hoverText, Action<string> callback)
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("CorralRegistration.Register()"));
+         Log.Message(string.Format("CorralRegistration.Register()"));
 
          bool success = false;
 
@@ -253,7 +285,7 @@ namespace ModCorral
                if (mri.ModName == modName && mri.ButtonText == buttonText)
                {
                   // already registered
-                  DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("CorralRegistration.Register() - {0} already registered", modName));
+                  Log.Message(string.Format("CorralRegistration.Register() - {0} already registered", modName));
 
                   return false;
                }                                           
@@ -265,17 +297,17 @@ namespace ModCorral
             // create new button...
             if (ModCorral.mcPanel != null)
             {
-               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(modName, buttonText, hoverText);
+               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(modName, buttonText, hoverText, newMRI.ClickCallback);
             }
 
             RegisteredMods.Add(newMRI);
             success = true;
 
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("CorralRegistration.Register() added mod: {0} {1}", newMRI.ModName, newMRI.ButtonText));
+            Log.Message(string.Format("CorralRegistration.Register() added mod: {0} {1}", newMRI.ModName, newMRI.ButtonText));
          }
          catch (Exception ex)
          {
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, string.Format("CorralRegistration.Register() threw an exception: {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.Register() threw an exception: {0}", ex.Message));
          }
 
          return success;
@@ -283,7 +315,7 @@ namespace ModCorral
 
       public bool DeRegister(string modName, string buttonText)
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("CorralRegistration.DeRegister()"));
+         Log.Message(string.Format("CorralRegistration.DeRegister()"));
 
          bool success = false;
 
@@ -316,13 +348,13 @@ namespace ModCorral
 
                if (success)
                {
-                  DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("CorralRegistration.Deregister() removed mod: {0} {1}", foundMRI.ModName, foundMRI.ButtonText));
+                  Log.Message(string.Format("CorralRegistration.Deregister() removed mod: {0} {1}", foundMRI.ModName, foundMRI.ButtonText));
                }
             }
          }
          catch (Exception ex)
          {
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, string.Format("CorralRegistration.Deregister() threw an exception: {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.Deregister() threw an exception: {0}", ex.Message));
          }
 
          return success;
@@ -338,12 +370,12 @@ namespace ModCorral
             g_instance = this as CorralRegistration;
          }
 
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "Mod Corral is awake and listening for registrations.");
+         Log.Message("Mod Corral is awake and listening for registrations.");
       }
 
       public void OnDestroy()
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "Mod Corral onDestroy");
+         Log.Message("Mod Corral onDestroy");
       }
 
    }

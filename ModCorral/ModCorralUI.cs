@@ -18,6 +18,9 @@ namespace ModCorral
       public UITitleSubPanel TitleSubPanel;
       public UIScrollButtonPanel ScrollPanel;
 
+      public Vector3 SavedCloseButtonPos;
+      public UIButton CloseToolbarButton;
+
       public void initialize()
       {
          float viewWidth = UIView.GetAView().GetScreenResolution().x;
@@ -53,6 +56,25 @@ namespace ModCorral
          m_Initialized = true;
       }
 
+      public override void Start()
+      {
+         SavedCloseButtonPos = TitleSubPanel.CloseButton.absolutePosition;
+         CloseToolbarButton = UIView.Find<UIButton>("TSCloseButton");
+
+         //test
+         CloseToolbarButton.eventClick += CloseToolbarButton_eventClick;
+         base.Start();
+      }
+
+      public void CloseToolbarButton_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+      {
+         if (isVisible)
+         {
+            Log.Message("close toolbar button click");
+            HideMe();
+         }
+      }
+
       public void ShowMeHideMe()
       {
          if (!this.isVisible)
@@ -67,12 +89,14 @@ namespace ModCorral
      
       public void ShowMe()
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("showme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
+         Log.Message(string.Format("showme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
 
          if (!m_Initialized)// || isVisible)
          {
             return;
          }
+
+         TitleSubPanel.CloseButton.Hide();         
 
          float num = this.normalDisplayRelPos.x + this.size.x;
          float end = num - size.x;
@@ -80,13 +104,21 @@ namespace ModCorral
 
          this.Show();
 
+         //Log.Message("mcbutton state: " + ModCorral.mcButton.state.ToString());
+
+         //if (ModCorral.mcButton.state != UIButton.ButtonState.Pressed)
+         //{
+         //   ModCorral.mcButton.state = UIButton.ButtonState.Pressed;
+         //}
+         //Log.Message("mcbutton state: " + ModCorral.mcButton.state.ToString());
+
          ValueAnimator.Animate(this.GetType().ToString(), (Action<float>)(val =>
          {
             Vector3 relativePosition = this.relativePosition;
             relativePosition.x = val;
             relativePosition.y = this.normalDisplayRelPos.y;
             this.relativePosition = relativePosition;
-            //this.closeToolbarButton.absolutePosition = this.m_CloseButton.absolutePosition;
+            this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut));
 
          //Singleton<AudioManager>.instance.PlaySound(this.m_SwooshInSound, 1f);
@@ -94,7 +126,7 @@ namespace ModCorral
 
       public void HideMe()
       {
-         DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("hideme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
+         Log.Message(string.Format("hideme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
 
          if (!m_Initialized)// || !isVisible)
          {
@@ -105,6 +137,16 @@ namespace ModCorral
          float start = num - size.x;
          float end = num + m_SafeMargin;
 
+         //Log.Message("mcbutton state: " + ModCorral.mcButton.state.ToString());
+         //if (ModCorral.mcButton.state != UIButton.ButtonState.Normal)
+         //{
+         //   ModCorral.mcButton.state = UIButton.ButtonState.Normal;
+         //   ModCorral.mcButton.Invalidate();
+         //   ModCorral.mcButton.Update();
+            
+         //}
+         //Log.Message("mcbutton state: " + ModCorral.mcButton.state.ToString());
+
          ValueAnimator.Animate(this.GetType().ToString(), (Action<float>)(val =>
          {
             Vector3 relativePosition = this.relativePosition;
@@ -113,6 +155,8 @@ namespace ModCorral
             this.relativePosition = relativePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut), (Action)(() => this.Hide()));
 
+         this.TitleSubPanel.CloseButton.Show();
+         this.CloseToolbarButton.absolutePosition = this.SavedCloseButtonPos;
       }
    }
 }

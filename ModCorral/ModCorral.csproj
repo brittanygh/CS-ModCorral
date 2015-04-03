@@ -53,6 +53,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Log.cs" />
     <Compile Include="ModCorral.cs" />
     <Compile Include="ModCorralUI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

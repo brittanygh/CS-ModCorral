@@ -62,7 +62,7 @@ namespace ModCorral
          CloseButton.hoveredBgSprite = "buttonclosehover";
          CloseButton.pressedBgSprite = "buttonclosepressed";
          CloseButton.relativePosition = new Vector3(this.width - CloseButton.width - inset, inset);
-         CloseButton.eventClick += (component, param) => { ParentPanel.HideMe(); };
+         CloseButton.eventClick += (component, param) => { ModCorral.mcButton.SimulateClick(); };
 
          DragHandle.target = ParentPanel;
          DragHandle.autoSize = true;
