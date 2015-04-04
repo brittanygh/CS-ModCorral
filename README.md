@@ -17,7 +17,8 @@ Some issues or features I'll fix or add:
 - more control over size of buttons for mods?
 
 Source is up at: https://github.com/brittanygh/CS-ModCorral 
-Steam workshop link: 
+
+Steam workshop link: http://steamcommunity.com/sharedfiles/filedetails/?id=419090722
 
 Technical notes for implemenation:
 - ModCorral expects mods to register via SendMessage, passing a method name and an array of params
