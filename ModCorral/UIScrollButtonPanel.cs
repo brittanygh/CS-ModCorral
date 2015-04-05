@@ -46,8 +46,9 @@ namespace ModCorral
             return;
          }
 
+         int inset = 0;
          this.width = ModCorralUI.GeneralWidth;
-         this.height = ModCorralUI.GeneralHeight - this.relativePosition.y - 5;
+         this.height = ModCorralUI.GeneralHeight - this.relativePosition.y - inset;
          this.isVisible = true;
          this.isEnabled = true;
          this.canFocus = true;
@@ -55,14 +56,11 @@ namespace ModCorral
          //this.builtinKeyNavigation = true;
          this.autoLayout = false;
          this.clipChildren = false; //temp
-         int inset = 5;
-
-         Log.Message("uiscrollbuttonpanel widht=" + this.width.ToString());
 
          ScrollPanel.relativePosition = new Vector3(inset, inset, 0);
-         ScrollPanel.backgroundSprite = "GenericPanel";
+         ScrollPanel.backgroundSprite = "SubcategoriesPanel";
          ScrollPanel.autoSize = false;
-         ScrollPanel.width = (ModCorralUI.GeneralWidth - 25 - 4 * inset);
+         ScrollPanel.width = (ModCorralUI.GeneralWidth - 20);
          ScrollPanel.height = (this.height - ScrollPanel.relativePosition.y - inset);
          ScrollPanel.autoLayout = true;
          ScrollPanel.isInteractive = true;
@@ -88,7 +86,7 @@ namespace ModCorral
          ScrollBar.isInteractive = true;
          ScrollBar.isVisible = true;
          ScrollBar.enabled = true;
-         ScrollBar.relativePosition = new Vector3(ScrollPanel.relativePosition.x + ScrollPanel.width + inset, ScrollPanel.relativePosition.y, 0);
+         ScrollBar.relativePosition = new Vector3(ScrollPanel.relativePosition.x + ScrollPanel.width + 5, ScrollPanel.relativePosition.y, 0);
          ScrollBar.minValue = 0;
          ScrollBar.value = 0;
          ScrollBar.incrementAmount = 10;
@@ -114,54 +112,100 @@ namespace ModCorral
          ScrollPanel.enabled = true;
       }
 
-      public UIButton AddAButton(string name, string text, string hovertext, Action<string> modCallback, string spritename, Texture2D texture)
+      public void ClearButtons()
       {
-         Log.Message("adding button " + name + text + "    scrollpanelwidth=" + ScrollPanel.width.ToString());
+         UIComponent[] carray = new UIComponent[ScrollPanel.components.Count];
+         ScrollPanel.components.CopyTo(carray, 0);
 
+         foreach (UIComponent child in carray)
+         {
+            ScrollPanel.RemoveUIComponent(child);
+            UnityEngine.Object.Destroy(child);
+         }
+      }
+
+      public UIButton AddAButton(ModRegistrationInfo mri)
+      {
          UIButton retval = ScrollPanel.AddUIComponent<UIButton>();
 
-         string uniquename = string.Format("{0}_{1}", name, text);
+         string uniquename = string.Format("{0}_{1}", mri.ModName, mri.ButtonText);
          retval.name = uniquename;
          retval.cachedName = uniquename;
 
-         if (spritename == null)
+         if (mri.NormalFgSpritename == null) // no images, use a button with text in it
          {
-            retval.text = text;
-            retval.textPadding = new RectOffset(5, 5, 2, 2);
+            retval.text = mri.ButtonText;
+            retval.textPadding = new RectOffset(2, 2, 2, 2);
             retval.textHorizontalAlignment = UIHorizontalAlignment.Left;
+            retval.textScaleMode = UITextScaleMode.None;
+            retval.textScale = 0.65f;
+            retval.wordWrap = true;
+            
             retval.normalBgSprite = "ButtonMenu";
             retval.hoveredBgSprite = "ButtonMenuHovered";
             retval.pressedBgSprite = "ButtonMenuPressed";
          }
          else
          {
-            if (texture != null)
+            if (mri.NormalFgTexture != null) // this triggers use of all textures
             {
-               retval.atlas = CreateAtlas(spritename, texture);
+               string[] spritenames = { mri.NormalFgSpritename, mri.NormalBgSpritename, mri.HoveredFgSpritename, mri.HoveredBgSpritename, mri.PressedFgSpritename, mri.PressedBgSpritename };
+               Texture2D[] textures = { mri.NormalFgTexture, mri.NormalBgTexture, mri.HoveredFgTexture, mri.HoveredBgTexture, mri.PressedFgTexture, mri.PressedBgTexture };
+
+               retval.atlas = CreateAtlas(uniquename, spritenames, textures);
+            }
+            else
+            {
+               // built-in sprite names
+               // - try to synthesize hover/focus/etc sprite names
+               // - hover = name + "hovered"
+               // - pressed = name + "pressed"
+               string basename = mri.NormalFgSpritename;
+
+               string hoversprite = basename + "Hovered";
+               string pressedsprite = basename + "Pressed";
+
+               if (string.IsNullOrEmpty(mri.HoveredFgSpritename))
+                  mri.HoveredFgSpritename = hoversprite;
+               if (string.IsNullOrEmpty(mri.PressedFgSpritename))
+                  mri.PressedFgSpritename = pressedsprite;
             }
 
-            retval.normalFgSprite = spritename;
+            if (string.IsNullOrEmpty(mri.HoveredBgSpritename))
+               mri.HoveredBgSpritename = "OptionBaseHovered"; // so that everybody has some hover feedback, even if they don't specify it
+
             retval.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
-            retval.hoveredColor = new Color32(0, 255, 0, 255);
+            retval.normalFgSprite = mri.NormalFgSpritename;
+            retval.normalBgSprite = mri.NormalBgSpritename;
+            retval.hoveredFgSprite = mri.HoveredFgSpritename;
+            retval.hoveredBgSprite = mri.HoveredBgSpritename;
+            retval.pressedFgSprite = mri.PressedFgSpritename;
+            retval.pressedBgSprite = mri.PressedBgSpritename;
+
+            retval.spritePadding = new RectOffset(2, 2, 2, 2);
+
          }
 
-         retval.tooltip = hovertext;
+         retval.tooltip = mri.HoverText;
          retval.tooltipAnchor = UITooltipAnchor.Floating;
-         
+         retval.eventTooltipShow += (component, param) => { param.tooltip.relativePosition = new Vector3(param.tooltip.relativePosition.x + 25, param.tooltip.relativePosition.y, param.tooltip.relativePosition.z); };
+
+         //retval.tooltipBox
+
          retval.autoSize = false;
          
-         if (spritename == null)
-         {
-            retval.height = 33;
-            retval.width = (ModCorralUI.GeneralWidth - 25 - 4 * 5) - 4;
-         }
-         else
+         //if (mri.NormalFgSpritename == null)
+         //{
+         //   retval.height = 33;
+         //   retval.width = (ModCorralUI.GeneralWidth - 25 - 4 * 5) - 4;
+         //}
+         //else
          {
             retval.height = 50;
             retval.width = 50;
          }
 
-         
+         retval.canFocus = false;
          retval.enabled = true;
          retval.isInteractive = true;
          retval.isVisible = true;
@@ -170,9 +214,9 @@ namespace ModCorral
          {            
             try
             {
-               if (modCallback != null)
+               if (mri.ClickCallback != null)
                {
-                  modCallback(component.name);
+                  mri.ClickCallback(component.name);
                }
             }
             catch (Exception ex)
@@ -192,19 +236,17 @@ namespace ModCorral
 
          if (foundButton != null)
          {
-            this.RemoveUIComponent(foundButton);
+            ScrollPanel.RemoveUIComponent(foundButton);
             UnityEngine.Object.Destroy(foundButton);
          }
       }
 
-      UITextureAtlas CreateAtlas(string spriteName, Texture2D spriteTexture)
+      UITextureAtlas CreateAtlas(string atlasName, string[] spriteNames, Texture2D[] spriteTextures)
       {
          Texture2D atlasTex = new Texture2D(1024, 1024, TextureFormat.ARGB32, false);
 
-         Texture2D[] textures = new Texture2D[1];
+         Texture2D[] textures = spriteTextures;
          Rect[] rects = new Rect[1];
-
-         textures[0] = spriteTexture;
 
          rects = atlasTex.PackTextures(textures, 2, 1024);
 
@@ -214,19 +256,47 @@ namespace ModCorral
          material.mainTexture = atlasTex;
 
          atlas.material = material;
-         atlas.name = spriteName + "_atlas";
+         atlas.name = atlasName;
 
-         UITextureAtlas.SpriteInfo spriteInfo = new UITextureAtlas.SpriteInfo()
+         for (int i = 0; i < rects.Length; i++ )
          {
-            name = spriteName,
-            texture = atlasTex,
-            region = rects[0]
-         };
+            if (spriteNames[i] != null && textures[i] != null)
+            {
+               UITextureAtlas.SpriteInfo spriteInfo = new UITextureAtlas.SpriteInfo()
+               {
+                  name = spriteNames[i],
+                  texture = textures[i],
+                  region = rects[i]
+               };
 
-         atlas.AddSprite(spriteInfo);
+               atlas.AddSprite(spriteInfo);
+            }
+         }
 
          return atlas;
       }
+
+         //UITextureAtlas atlas = new UITextureAtlas ();
+         //atlas.material = new Material (ResourceUtils.GetUIAtlasShader ());
+
+         //Texture2D texture = new Texture2D (0, 0);
+         //Rect[] rects = texture.PackTextures (sprites, 0);
+
+         //for (int i = 0; i < rects.Length; ++i) {
+         //   Texture2D sprite = sprites [i];
+         //   Rect rect = rects [i];
+
+         //   UITextureAtlas.SpriteInfo spriteInfo = new UITextureAtlas.SpriteInfo ();
+         //   spriteInfo.name = sprite.name;
+         //   spriteInfo.texture = sprite;
+         //   spriteInfo.region = rect;
+         //   spriteInfo.border = new RectOffset ();
+
+         //   atlas.AddSprite (spriteInfo);
+         //}
+
+         //atlas.material.mainTexture = texture;
+         //return atlas;
    }
 }
 

@@ -13,19 +13,19 @@ namespace ModCorral
       public static float m_SafeMargin = 20f;
       public static float m_ShowHideTime = 0.3f;
 
-      public static int GeneralWidth = 125;
-      public static int GeneralHeight = 250;
+      public static int GeneralWidth = 75;
+      public static int GeneralHeight = 540; // 10 buttons at 50 each plus top and bottom padding of 2 each
 
       public bool m_Initialized = false;
       public bool isHiding = false;
 
       public Vector3 normalDisplayRelPos = Vector3.zero;
 
-      public UITitleSubPanel TitleSubPanel;
+      //public UITitleSubPanel TitleSubPanel;
       public UIScrollButtonPanel ScrollPanel;
 
-      public Vector3 SavedCloseButtonPos;
-      public UIButton CloseToolbarButton;
+      //public Vector3 SavedCloseButtonPos;
+      //public UIButton CloseToolbarButton;
 
       public AudioClip m_SwooshInSound;
       public AudioClip m_SwooshOutSound;
@@ -43,25 +43,25 @@ namespace ModCorral
          this.normalDisplayRelPos = this.relativePosition;//new Vector3(viewWidth  - this.size.x, viewHeight - this.size.y, 0f);
          //this.relativePosition = normalDisplayRelPos;
 
-         this.backgroundSprite = "MenuPanel";
+         this.backgroundSprite = "SubcategoriesPanel";
 
          this.clipChildren = false;
          this.canFocus = true;
          this.isInteractive = true;
-         this.eventPositionChanged += (component, eventParam) => { if (!isHiding && isVisible) this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition; };
+        // this.eventPositionChanged += (component, eventParam) => { if (!isHiding && isVisible) this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition; };
 
-         float inset = 5f;
+         float inset = 0;// 5f;
 
-         // title bar and close button
-         TitleSubPanel = AddUIComponent<UITitleSubPanel>();
-         TitleSubPanel.ParentPanel = this;
-         TitleSubPanel.relativePosition = new Vector3(inset, inset, 0);
-         TitleSubPanel.width = this.width;
-         TitleSubPanel.height = 40;
+         //// title bar and close button
+         //TitleSubPanel = AddUIComponent<UITitleSubPanel>();
+         //TitleSubPanel.ParentPanel = this;
+         //TitleSubPanel.relativePosition = new Vector3(inset, inset, 0);
+         //TitleSubPanel.width = this.width;
+         //TitleSubPanel.height = 30;
 
          ScrollPanel = AddUIComponent<UIScrollButtonPanel>();
          ScrollPanel.ParentPanel = this;
-         ScrollPanel.relativePosition = new Vector3(inset, TitleSubPanel.relativePosition.y + TitleSubPanel.height + inset);
+         ScrollPanel.relativePosition = new Vector3(0, 0, 0);//new Vector3(inset, TitleSubPanel.relativePosition.y + TitleSubPanel.height + inset);
          ScrollPanel.width = this.width;
          ScrollPanel.height = this.height - ScrollPanel.relativePosition.y - inset;
 
@@ -78,11 +78,11 @@ namespace ModCorral
 
       public override void Start()
       {
-         SavedCloseButtonPos = TitleSubPanel.CloseButton.absolutePosition;
-         CloseToolbarButton = UIView.Find<UIButton>("TSCloseButton");
+         //SavedCloseButtonPos = TitleSubPanel.CloseButton.absolutePosition;
+         //CloseToolbarButton = UIView.Find<UIButton>("TSCloseButton");
 
          //test
-         CloseToolbarButton.eventClick += CloseToolbarButton_eventClick;
+         //CloseToolbarButton.eventClick += CloseToolbarButton_eventClick;
          base.Start();
       }
 
@@ -90,7 +90,6 @@ namespace ModCorral
       {
          if (isVisible)
          {
-            Log.Message("close toolbar button click");
             HideMe();
          }
       }
@@ -109,8 +108,6 @@ namespace ModCorral
      
       public void ShowMe()
       {
-         Log.Message(string.Format("showme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
-
          if (!m_Initialized)// || isVisible)
          {
             return;
@@ -118,7 +115,7 @@ namespace ModCorral
 
          isHiding = false;
 
-         TitleSubPanel.CloseButton.Hide();         
+         //TitleSubPanel.CloseButton.Hide();         
 
          // pop in from  below
          float num = this.normalDisplayRelPos.y + this.size.y;
@@ -141,7 +138,7 @@ namespace ModCorral
             relativePosition.y = val;
             relativePosition.x = this.normalDisplayRelPos.x;
             this.relativePosition = relativePosition;
-            this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition;
+            //this.CloseToolbarButton.absolutePosition = this.TitleSubPanel.CloseButton.absolutePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut));
 
          Singleton<AudioManager>.instance.PlaySound(this.m_SwooshInSound, 1f);
@@ -150,8 +147,6 @@ namespace ModCorral
 
       public void HideMe()
       {
-         Log.Message(string.Format("hideme parentrelpos: {0} parentsize: {1} thisrelpos: {2} thissize: {3}", parent.relativePosition, parent.size, this.relativePosition, this.size));
-
          if (!m_Initialized)// || !isVisible)
          {
             return;
@@ -182,8 +177,8 @@ namespace ModCorral
             this.relativePosition = relativePosition;
          }), new AnimatedFloat(start, end, m_ShowHideTime, EasingType.ExpoEaseOut), (Action)(() => this.Hide()));
 
-         this.TitleSubPanel.CloseButton.Show();
-         this.CloseToolbarButton.absolutePosition = this.SavedCloseButtonPos;
+         //this.TitleSubPanel.CloseButton.Show();
+         //this.CloseToolbarButton.absolutePosition = this.SavedCloseButtonPos;
 
          //if (!this.component.isVisible || !this.m_EnableAudio || (!Singleton<AudioManager>.exists || !((UnityEngine.Object)this.m_SwooshOutSound != (UnityEngine.Object)null)))
          //   return;

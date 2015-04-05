@@ -10,7 +10,8 @@ namespace ModCorral
 {
    public static class Log
    {
-      public static bool DoInfos = false;
+      public static bool DoInfos = true;
+      public static bool DoWarnings = true;
       public static bool DoErrors = true;
 
       public static void Message(string msg)
@@ -20,7 +21,7 @@ namespace ModCorral
       }
       public static void Warning(string msg)
       {
-         if (DoInfos)
+         if (DoWarnings)
             DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Warning, msg);
       }
       public static void Error(string msg)

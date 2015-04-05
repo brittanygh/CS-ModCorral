@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using ICities;
 using ColossalFramework;
+using ColossalFramework.Plugins;
 using ColossalFramework.UI;
 using UnityEngine;
 
@@ -21,12 +22,57 @@ namespace ModCorral
       // constructor gets instantiated before any extensions are called
       public ModCorral()
       {
-         // create our corral monobehaviour
-         UIView uiv = UIView.GetAView();
-
-         if (uiv != null && uiv.gameObject != null)
+         try
          {
-            CorralRegistration creg = CorralRegistration.instance;
+            // determine if we are enabled or not
+            if (PluginManager.instance == null || PluginManager.instance.GetPluginsInfo() == null)
+            {
+               Log.Message("ModCorral quitting, PluginManager.instance is null.");
+               return;
+            }
+
+            // the very first thing we need to do is check if we're enabled.  This constructor 
+            // is called even if we're marked as not to be loaded, so if not enabled, don't do anything
+            PluginManager.PluginInfo myPluginInfo = null;
+            foreach (PluginManager.PluginInfo info in PluginManager.instance.GetPluginsInfo())
+            {
+               if (info.name == "ModCorral" || info.publishedFileID.AsUInt64 == 419090722)
+               {
+                  myPluginInfo = info;
+                  break;
+               }
+            }
+
+            if (myPluginInfo == null)
+            {
+               Log.Error("ModCorral PluginInfo not found, exiting.");
+
+               return;
+            }
+
+            //// we need to be notified if our mod is enabled or disabled
+            //PluginManager.instance.eventPluginsChanged += () => { this.EvaluateStatus(); };
+            //PluginManager.instance.eventPluginsStateChanged += () => { this.EvaluateStatus(); };
+
+            if (!myPluginInfo.isEnabled)
+            {
+               Log.Warning("ModCorral is disabled.");
+               return;
+            }
+
+            Log.Message("ModCorral initializing.");
+
+            // create our corral monobehaviour
+            UIView uiv = UIView.GetAView();
+
+            if (uiv != null && uiv.gameObject != null)
+            {
+               CorralRegistration creg = CorralRegistration.instance;
+            }
+         }
+         catch(Exception ex)
+         {
+            Log.Error("ModCorral() Exception: " + ex.Message);
          }
       }
 
@@ -42,111 +88,112 @@ namespace ModCorral
 
       public void OnCreated(ILoading loading)
       {
-        
-         Log.Message("modcorral.oncreated");
       }
 
       public void OnLevelLoaded(LoadMode mode)
       {
-         Log.Message("corral mod: onlevelloaded" + mode.ToString());
+         try
+         {
+            Log.Message("ModCorral.OnLevelLoaded() " + mode.ToString());
 
-         if (mode == LoadMode.LoadGame || mode == LoadMode.NewGame)
-         {                      
-            if (mcButton == null) // if not created yet
+            if (mode == LoadMode.LoadGame || mode == LoadMode.NewGame)
             {
-               // add button to the end of the TSBar MainToolstrip (UITabStrip) 
-               UIView uiv = UIView.GetAView();
-
-               if (uiv != null)
+               if (mcButton == null) // if not created yet
                {
-                  UITabstrip ts = uiv.FindUIComponent<UITabstrip>("MainToolstrip");
+                  // add button to the end of the TSBar MainToolstrip (UITabStrip) 
+                  UIView uiv = UIView.GetAView();
 
-                  if (ts != null)
+                  if (uiv != null)
                   {
-                     Log.Message("found maintoolstrip");
+                     UITabstrip ts = uiv.FindUIComponent<UITabstrip>("MainToolstrip");
 
-                     UIButton policiesButton = ts.Find<UIButton>("Policies"); // we use this as a template to get 'most' of what we need set up                
-                     mcButton = ts.AddTab("ModCorral", policiesButton, false);
-
-                     // find the panel added in the ts tabcontainer
-                     foreach (UIComponent c in ts.tabContainer.components)
+                     if (ts != null)
                      {
-                        if (c.name.Contains("ModCorral"))
+                        UIButton policiesButton = ts.Find<UIButton>("Policies"); // we use this as a template to get 'most' of what we need set up                
+                        mcButton = ts.AddTab("ModCorral", policiesButton, false);
+
+                        // find the panel added in the ts tabcontainer
+                        foreach (UIComponent c in ts.tabContainer.components)
                         {
-                           Log.Message("found tab panel");
-                           TabPanel = c as UIPanel;
-                           c.clipChildren = false;
-                           c.opacity = 0; // otherwise our panel gets clicks obscured when it's in the same place...
-                           
-                           break;
-                        }
-                     }
-
-                     // initial position info
-                     StartingAbsPosY = ts.absolutePosition.y - 20; // get rid of hardcoded 20...
-
-                     ts.eventSelectedIndexChanged += ts_eventSelectedIndexChanged;
-
-                     if (mcButton != null)
-                     {
-                        StartingAbsPosX = mcButton.absolutePosition.x;
-
-                        mcButton.tooltip = "Open Mod Corral";
-                        mcButton.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
-                        mcButton.scaleFactor = 0.6f; // to fit a little better when using options sprites
-                        mcButton.normalFgSprite = "Options";
-                        mcButton.hoveredFgSprite = "OptionsHovered";
-                        mcButton.focusedFgSprite = "OptionsFocused";
-                        mcButton.pressedFgSprite = "OptionsPressed";
-                        mcButton.disabledFgSprite = "OptionsDisabled";
-                        mcButton.eventClick += mcButton_eventClick;
-                        mcButton.clipChildren = false;
-                        
-                        UIPanel fscont = uiv.FindUIComponent<UIPanel>("FullScreenContainer");
-
-                        if (fscont != null)
-                        {
-                           // create our ui panel
-                           mcPanel = (ModCorralUI)fscont.AddUIComponent(typeof(ModCorralUI));
-                        }
-                        else
-                           Log.Message("no fullscreencontainer");
-
-                        if (mcPanel != null)
-                        {                           
-                           mcPanel.transform.parent = fscont.transform;
-                           mcPanel.initialize();
-                           //mcPanel.anchor = UIAnchorStyle.All;
-
-                           // add any buttons that might have been registered before we got created
-                           if (CorralRegistration.RegisteredMods != null)
+                           if (c.name.Contains("ModCorral"))
                            {
-                              foreach (ModRegistrationInfo mri in CorralRegistration.RegisteredMods)
-                              {
-                                 if (mri.ModButton == null)
-                                 {
-                                    mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri.ModName, mri.ButtonText, mri.HoverText, mri.ClickCallback, mri.SpriteName, mri.SpriteTexture);
-                                 }
-                              }
-                           }
+                              TabPanel = c as UIPanel;
+                              c.clipChildren = false;
+                              c.opacity = 0; // otherwise our panel gets clicks obscured when it's in the same place...
 
-                           mcPanel.isVisible = false;
+                              break;
+                           }
+                        }
+
+                        // initial position info
+                        StartingAbsPosY = ts.absolutePosition.y - 20; // get rid of hardcoded 20...
+
+                        ts.eventSelectedIndexChanged += ts_eventSelectedIndexChanged;
+
+                        if (mcButton != null)
+                        {
+                           StartingAbsPosX = mcButton.absolutePosition.x;
+
+                           mcButton.tooltip = "Open Mod Corral";
+                           mcButton.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
+                           mcButton.scaleFactor = 0.6f; // to fit a little better when using options sprites
+                           mcButton.normalFgSprite = "Options";
+                           mcButton.hoveredFgSprite = "OptionsHovered";
+                           mcButton.focusedFgSprite = "OptionsFocused";
+                           mcButton.pressedFgSprite = "OptionsPressed";
+                           mcButton.disabledFgSprite = "OptionsDisabled";
+                           mcButton.eventClick += mcButton_eventClick;
+                           mcButton.clipChildren = false;
+
+                           UIPanel fscont = uiv.FindUIComponent<UIPanel>("FullScreenContainer");
+
+                           if (fscont != null)
+                           {
+                              // create our ui panel
+                              mcPanel = (ModCorralUI)fscont.AddUIComponent(typeof(ModCorralUI));
+                           }
+                           else
+                              Log.Message("no fullscreencontainer");
+
+                           if (mcPanel != null)
+                           {
+                              mcPanel.transform.parent = fscont.transform;
+                              mcPanel.initialize();
+                              //mcPanel.anchor = UIAnchorStyle.All;
+
+                              mcPanel.isVisible = false;
+                           }
                         }
                      }
-                  }
-                  else
-                  {
-                     Log.Message("failed to find maintoolstrip");
+                     else
+                     {
+                        Log.Message("failed to find maintoolstrip");
+                     }
                   }
                }
+
+               // add any buttons that might have been registered before we got created
+               if (CorralRegistration.RegisteredMods != null)
+               {
+                  foreach (ModRegistrationInfo mri in CorralRegistration.RegisteredMods)
+                  {
+                     if (mri.ModButton == null)
+                     {
+                        mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri);
+                     }
+                  }
+               }
+
             }
+         }
+         catch (Exception ex)
+         {
+            Log.Error("ModCorral.OnLevelLoaded() Exception: " + ex.Message);
          }
       }
 
       public void ts_eventSelectedIndexChanged(UIComponent component, int selectedIndex)
       {
-         Log.Message("selected index: " + selectedIndex.ToString());
-
          UITabstrip ts = component as UITabstrip;
 
          if (ts != null)
@@ -183,15 +230,7 @@ namespace ModCorral
 
       public void OnLevelUnloading()
       {
-         Log.Message("corral mod onlevelunloading...");
-
-         if (CorralRegistration.RegisteredMods != null)
-         {
-            CorralRegistration.RegisteredMods.Clear();
-
-            // add our config button
-            CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, "Options", null); // need a callback...
-         }
+         Log.Message("ModCorral.OnLevelUnloading()");
       }
 
       public void OnReleased()
@@ -208,8 +247,20 @@ namespace ModCorral
       public UIButton ModButton;
       public Action<string> ClickCallback;
 
-      public string SpriteName;
-      public Texture2D SpriteTexture;
+      public string NormalFgSpritename;
+      public Texture2D NormalFgTexture;
+      public string NormalBgSpritename;
+      public Texture2D NormalBgTexture;
+
+      public string HoveredFgSpritename;
+      public Texture2D HoveredFgTexture;
+      public string HoveredBgSpritename;
+      public Texture2D HoveredBgTexture;
+
+      public string PressedFgSpritename;
+      public Texture2D PressedFgTexture;
+      public string PressedBgSpritename;
+      public Texture2D PressedBgTexture;
    }
 
    public class CorralRegistration : MonoBehaviour
@@ -228,7 +279,6 @@ namespace ModCorral
                go.hideFlags = HideFlags.HideAndDontSave;
 
                g_instance = go.AddComponent<CorralRegistration>();
-               //g_instance.name = "CorralRegistration";
             }
 
             return g_instance;
@@ -244,15 +294,34 @@ namespace ModCorral
       // [1] - string button text
       // [2] - string hover text
       // [3] - Action<string> delegate 
-      // [4] - optional spritename (either builtin or custom)
-      // [5] - optional texture2d for spritename
       //
+      // normal sprites, foreground and background
+      //
+      // [4] - optional normalFg spritename (either builtin or custom)
+      // [5] - optional texture2d for normalFg spritename
+      // [6] - optional normalBg spritename (either builtin or custom)
+      // [7] - optional texture2d for normalBg spritename
+      //
+      // hovered sprites, foreground and background
+      //
+      // [8] - optional hoveredFg spritename (either builtin or custom)
+      // [9] - optional texture2d for hoveredFg spritename
+      // [10] - optional hoveredBg spritename (either builtin or custom)
+      // [11] - optional texture2d for hoveredBg spritename
+      //
+      // pressed sprites, foreground and background
+      //
+      // [12] - optional pressedFg spritename (either builtin or custom)
+      // [13] - optional texture2d for pressedFg spritename
+      // [14] - optional pressedBg spritename (either builtin or custom)
+      // [15] - optional texture2d for pressedBg spritename      
       public void RegisterMod(object[] paramArray)
       {
          try
          {
-            if (paramArray == null || !(paramArray.Length == 4 || paramArray.Length == 6))
+            if (paramArray == null || !(paramArray.Length == 4 || paramArray.Length == 6 || paramArray.Length == 16))
             {
+               Log.Warning("ModCorral.RegisterMod() - Mandatory parameters null or number of parameters incorrect, skipping registration.");
                return;
             }
 
@@ -263,28 +332,89 @@ namespace ModCorral
 
             if (p0 == null || p1 == null || p3 == null) // these 3 are mandatory
             {
+               Log.Warning("ModCorral.RegisterMod() - Mandatory parameters not set, skipping registration.");
                return;
             }
 
             string p4 = null;
             Texture2D p5 = null;
 
-            if (paramArray.Length == 6)
+            if (paramArray.Length >= 6)
             {
                p4 = paramArray[4] as string;
                p5 = paramArray[5] as Texture2D;
 
                if (p4 == null)
                {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify normalFg spritename parameter, skipping registration.");
                   return;
                }
             }
 
-            Register(p0, p1, p2, p3, p4, p5);
+            string p6 = null;
+            Texture2D p7 = null;
+            string p8 = null;
+            Texture2D p9 = null;
+            string p10 = null;
+            Texture2D p11 = null;
+            string p12 = null;
+            Texture2D p13 = null;
+            string p14 = null;
+            Texture2D p15 = null;
+
+            if (paramArray.Length == 16)
+            {
+               p6 = paramArray[6] as string;
+               p7 = paramArray[7] as Texture2D;
+
+               if (p6 == null)
+               {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify normalBg spritename parameter, skipping registration.");
+                  return;
+               }
+
+               p8 = paramArray[8] as string;
+               p9 = paramArray[9] as Texture2D;
+
+               if (p8 == null)
+               {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify hoveredFg spritename parameter, skipping registration.");
+                  return;
+               }
+
+               p10 = paramArray[10] as string;
+               p11 = paramArray[11] as Texture2D;
+
+               if (p10 == null)
+               {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify hoveredBg spritename parameter, skipping registration.");
+                  return;
+               }
+
+               p12 = paramArray[12] as string;
+               p13 = paramArray[13] as Texture2D;
+
+               if (p12 == null)
+               {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify pressedFg spritename parameter, skipping registration.");
+                  return;
+               }
+
+               p14 = paramArray[14] as string;
+               p15 = paramArray[15] as Texture2D;
+
+               if (p14 == null)
+               {
+                  Log.Warning("ModCorral.RegisterMod() - caller failed to specify pressedFg spritename parameter, skipping registration.");
+                  return;
+               }
+            }
+
+            Register(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
          }
          catch(Exception ex)
          {
-            Log.Error(string.Format("Exception in CorralRegistration.RegisterMod(): {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.RegisterMod() Exception: {0}", ex.Message));
          }
       }
 
@@ -300,6 +430,8 @@ namespace ModCorral
          {
             if (paramArray == null || paramArray.Length != 2)
             {
+               Log.Warning("ModCorral.DeRegisterMod() - Mandatory parameter null or wrong size, skipping de-registration.");
+
                return;
             }
 
@@ -307,6 +439,7 @@ namespace ModCorral
             string p1 = paramArray[1] as string;
             if (p0 == null || p1 == null) // all are mandatory
             {
+               Log.Warning("ModCorral.DeRegisterMod() - Mandatory parameters not set, skipping de-registration.");
                return;
             }
 
@@ -315,12 +448,26 @@ namespace ModCorral
          }
          catch (Exception ex)
          {
-            Log.Error(string.Format("Exception in CorralRegistration.DeRegisterMod(): {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.DeRegisterMod() Exception: {0}", ex.Message));
          }
       }
 
+      public bool Register(string modName, string buttonText, string hoverText, Action<string> callback, 
+         string normalFgSpritename, Texture2D normalFgTexture
+         )
+      {
+         return Register(modName, buttonText, hoverText, callback, normalFgSpritename, normalFgTexture,
+            null, null, null, null, null, null, null, null, null, null);
+      }
 
-      public bool Register(string modName, string buttonText, string hoverText, Action<string> callback, string spritename, Texture2D texture)
+      public bool Register(string modName, string buttonText, string hoverText, Action<string> callback, 
+         string normalFgSpritename, Texture2D normalFgTexture,
+         string normalBgSpritename, Texture2D normalBgTexture,
+         string hoveredFgSpritename, Texture2D hoveredFgTexture,
+         string hoveredBgSpritename, Texture2D hoveredBgTexture,
+         string pressedFgSpritename, Texture2D pressedFgTexture,
+         string pressedBgSpritename, Texture2D pressedBgTexture
+         )
       {
          Log.Message(string.Format("CorralRegistration.Register()"));
 
@@ -333,29 +480,42 @@ namespace ModCorral
                if (mri.ModName == modName && mri.ButtonText == buttonText)
                {
                   // already registered
-                  Log.Message(string.Format("CorralRegistration.Register() - {0} already registered", modName));
+                  Log.Warning(string.Format("CorralRegistration.Register() - '{0}-{1}' already registered", modName, buttonText));
 
                   return false;
                }                                           
             }
 
             // register it
-            ModRegistrationInfo newMRI = new ModRegistrationInfo { ModName = modName, ButtonText = buttonText, HoverText = hoverText, ClickCallback = callback, SpriteName = spritename, SpriteTexture = texture };
+            ModRegistrationInfo newMRI = new ModRegistrationInfo { ModName = modName, ButtonText = buttonText, HoverText = hoverText, ClickCallback = callback,
+                                                                   NormalFgSpritename = normalFgSpritename,
+                                                                   NormalFgTexture = normalFgTexture,
+                                                                   NormalBgSpritename = normalBgSpritename,
+                                                                   NormalBgTexture = normalBgTexture,
+                                                                   HoveredFgSpritename = hoveredFgSpritename,
+                                                                   HoveredFgTexture = hoveredFgTexture,
+                                                                   HoveredBgSpritename = hoveredBgSpritename,
+                                                                   HoveredBgTexture = hoveredBgTexture,
+                                                                   PressedFgSpritename = pressedFgSpritename,
+                                                                   PressedFgTexture = pressedFgTexture,
+                                                                   PressedBgSpritename = pressedBgSpritename,
+                                                                   PressedBgTexture = pressedBgTexture,
+            };
             
             // create new button...
             if (ModCorral.mcPanel != null)
             {
-               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(modName, buttonText, hoverText, newMRI.ClickCallback, newMRI.SpriteName, newMRI.SpriteTexture);
+               newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(newMRI);
             }
 
             RegisteredMods.Add(newMRI);
             success = true;
 
-            Log.Message(string.Format("CorralRegistration.Register() added mod: {0} {1}", newMRI.ModName, newMRI.ButtonText));
+            Log.Message(string.Format("CorralRegistration.Register() added mod: '{0}-{1}'", newMRI.ModName, newMRI.ButtonText));
          }
          catch (Exception ex)
          {
-            Log.Error(string.Format("CorralRegistration.Register() threw an exception: {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.Register() Exception: {0}", ex.Message));
          }
 
          return success;
@@ -396,13 +556,17 @@ namespace ModCorral
 
                if (success)
                {
-                  Log.Message(string.Format("CorralRegistration.Deregister() removed mod: {0} {1}", foundMRI.ModName, foundMRI.ButtonText));
+                  Log.Message(string.Format("CorralRegistration.Deregister() removed mod: '{0}-{1}'", foundMRI.ModName, foundMRI.ButtonText));
                }
+            }
+            else
+            {
+               Log.Warning(string.Format("CorralRegisration.Deregister() - failed to find mod '{0}-{1}' to de-register", modName, buttonText));
             }
          }
          catch (Exception ex)
          {
-            Log.Error(string.Format("CorralRegistration.Deregister() threw an exception: {0}", ex.Message));
+            Log.Error(string.Format("CorralRegistration.Deregister() Exception: {0}", ex.Message));
          }
 
          return success;
@@ -419,7 +583,14 @@ namespace ModCorral
          }
 
          // add our config button
-         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, "Options", null); // need a callback...
+         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, 
+            "Options", null,
+            "OptionsBase", null,
+            "OptionsHovered", null,
+            "OptionsBaseHovered", null,
+            "OptionsPressed", null,
+            "OptionsBasePressed", null
+            ); // need a callback...
 
          Log.Message("Mod Corral is awake and listening for registrations.");
       }
