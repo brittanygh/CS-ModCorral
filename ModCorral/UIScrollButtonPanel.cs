@@ -124,6 +124,132 @@ namespace ModCorral
          }
       }
 
+      public UIMultiStateButton AddAToggleButton(ToggleModRegistrationInfo mri)
+      {
+         if (mri == null || mri.SpriteInfo == null || mri.SpriteInfo_state2 == null)
+         {
+            Log.Error("AddaToggleButton() - invalid parameters.");
+            return null;
+         }
+
+         UIMultiStateButton retval = ScrollPanel.AddUIComponent<UIMultiStateButton>();
+
+         string uniquename = string.Format("{0}_{1}", mri.ModName, mri.ButtonText);
+         retval.name = uniquename;
+         retval.cachedName = uniquename;
+
+         if (mri.SpriteInfo.NormalFgTexture != null) // this triggers use of all textures
+         {
+            string[] spritenames = { 
+                                      mri.SpriteInfo.NormalFgSpritename, mri.SpriteInfo.NormalBgSpritename, mri.SpriteInfo.HoveredFgSpritename, mri.SpriteInfo.HoveredBgSpritename, mri.SpriteInfo.PressedFgSpritename, mri.SpriteInfo.PressedBgSpritename,
+                                      mri.SpriteInfo_state2.NormalFgSpritename, mri.SpriteInfo_state2.NormalBgSpritename, mri.SpriteInfo_state2.HoveredFgSpritename, mri.SpriteInfo_state2.HoveredBgSpritename, mri.SpriteInfo_state2.PressedFgSpritename, mri.SpriteInfo_state2.PressedBgSpritename
+                                   };
+            Texture2D[] textures = { 
+                                      mri.SpriteInfo.NormalFgTexture, mri.SpriteInfo.NormalBgTexture, mri.SpriteInfo.HoveredFgTexture, mri.SpriteInfo.HoveredBgTexture, mri.SpriteInfo.PressedFgTexture, mri.SpriteInfo.PressedBgTexture,
+                                      mri.SpriteInfo_state2.NormalFgTexture, mri.SpriteInfo_state2.NormalBgTexture, mri.SpriteInfo_state2.HoveredFgTexture, mri.SpriteInfo_state2.HoveredBgTexture, mri.SpriteInfo_state2.PressedFgTexture, mri.SpriteInfo_state2.PressedBgTexture 
+                                   };
+
+            retval.atlas = CreateAtlas(uniquename, spritenames, textures);
+         }
+
+         // we only support sprite image or texture buttons, no text-only (doesn't work properly for some reason)
+         UIMultiStateButton.SpriteSetState fgSpriteSetState = retval.foregroundSprites;
+         UIMultiStateButton.SpriteSetState bgSpriteSetState = retval.backgroundSprites;
+            
+         // these should never be null, and should start with one (empty) sprite set each, we'll need to add one more
+         if (fgSpriteSetState == null || bgSpriteSetState == null)
+         {
+            Log.Error("AddaToggleButton() - UIMultiStateButton missing SpriteSetState.");
+            RemoveAButton(retval.name);
+
+            return null;
+         }
+
+         UIMultiStateButton.SpriteSet fgSpriteSet = fgSpriteSetState[0];
+         UIMultiStateButton.SpriteSet bgSpriteSet = bgSpriteSetState[0];
+
+         if (fgSpriteSet == null)
+         {
+            fgSpriteSetState.AddState();
+            fgSpriteSet = fgSpriteSetState[0];
+         }
+
+         if (bgSpriteSet == null)
+         {
+            bgSpriteSetState.AddState();
+            bgSpriteSet = bgSpriteSetState[0];
+         }
+
+         // add state '0'
+         fgSpriteSet.normal = mri.SpriteInfo.NormalFgSpritename;
+         fgSpriteSet.hovered = mri.SpriteInfo.HoveredFgSpritename;
+         fgSpriteSet.pressed = mri.SpriteInfo.PressedFgSpritename;
+
+         bgSpriteSet.normal = mri.SpriteInfo.NormalBgSpritename;
+         bgSpriteSet.hovered = mri.SpriteInfo.HoveredBgSpritename;
+         bgSpriteSet.pressed = mri.SpriteInfo.PressedBgSpritename;
+
+         // now add state '1'
+         fgSpriteSetState.AddState();
+         bgSpriteSetState.AddState();
+
+         UIMultiStateButton.SpriteSet fgSpriteSet1 = fgSpriteSetState[1];
+         UIMultiStateButton.SpriteSet bgSpriteSet1 = bgSpriteSetState[1];
+
+         fgSpriteSet1.normal = mri.SpriteInfo_state2.NormalFgSpritename;
+         fgSpriteSet1.hovered = mri.SpriteInfo_state2.HoveredFgSpritename;
+         fgSpriteSet1.pressed = mri.SpriteInfo_state2.PressedFgSpritename;
+
+         bgSpriteSet1.normal = mri.SpriteInfo_state2.NormalBgSpritename;
+         bgSpriteSet1.hovered = mri.SpriteInfo_state2.HoveredBgSpritename;
+         bgSpriteSet1.pressed = mri.SpriteInfo_state2.PressedBgSpritename;
+
+         retval.state = UIMultiStateButton.ButtonState.Normal; // initial value
+         retval.activeStateIndex = 0;
+         retval.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
+         retval.spritePadding = new RectOffset(2, 2, 2, 2);
+
+         retval.tooltip = mri.HoverText;
+         retval.tooltipAnchor = UITooltipAnchor.Floating;
+         retval.eventTooltipShow += (component, param) => { param.tooltip.relativePosition = new Vector3(param.tooltip.relativePosition.x + 25, param.tooltip.relativePosition.y, param.tooltip.relativePosition.z); };
+
+         retval.autoSize = false;
+         retval.height = 50;
+         retval.width = 50;
+
+         retval.canFocus = false;
+         retval.enabled = true;
+         retval.isInteractive = true;
+         retval.isVisible = true;
+
+         retval.eventClick += 
+            (component, param) =>
+         {
+            try
+            {
+               UIMultiStateButton compbutt = component as UIMultiStateButton;
+
+               if (compbutt == null)
+               {
+                  Log.Error(string.Format("Problem in callback handler for Mod: {0}", component.name));
+
+                  return;
+               }
+              
+               if (mri.ToggleCallback != null)
+               {
+                  mri.ToggleCallback(component.name, compbutt.activeStateIndex);
+               }
+            }
+            catch (Exception ex)
+            {
+               Log.Error(string.Format("Exception in callback to Mod: {0}. Exception: {1}", component.name, ex.Message));
+            }
+         };
+
+         return retval;
+      }
+
       public UIButton AddAButton(ModRegistrationInfo mri)
       {
          UIButton retval = ScrollPanel.AddUIComponent<UIButton>();
@@ -131,26 +257,73 @@ namespace ModCorral
          string uniquename = string.Format("{0}_{1}", mri.ModName, mri.ButtonText);
          retval.name = uniquename;
          retval.cachedName = uniquename;
+         retval.autoSize = false;
+         retval.height = 50;
+         retval.width = 50;
 
-         if (mri.NormalFgSpritename == null) // no images, use a button with text in it
+         if (mri.SpriteInfo.NormalFgSpritename == null) // no images, use a button with text in it
          {
             retval.text = mri.ButtonText;
             retval.textPadding = new RectOffset(2, 2, 2, 2);
-            retval.textHorizontalAlignment = UIHorizontalAlignment.Left;
+            retval.textHorizontalAlignment = UIHorizontalAlignment.Center;
             retval.textScaleMode = UITextScaleMode.None;
-            retval.textScale = 0.65f;
+            retval.textScale = 2f;
             retval.wordWrap = true;
-            
+
+            UIFontRenderer uifr = retval.font.ObtainRenderer();
+
+            float original_uifr_scale = 2f;// uifr.textScale; // always starts at 1
+            float lastuifrscale = uifr.textScale;
+
+            if (uifr != null)
+            {
+               while (uifr != null)
+               {                                  
+                  Vector2 svec =  uifr.MeasureString(retval.text);
+                  //Log.Message("svec: " + svec.ToString());
+
+                  if (Math.Max(svec.x, svec.y) > retval.height)
+                  {
+                     lastuifrscale -= 0.05f;
+                  }
+                  else
+                  {
+                     break;
+                  }
+
+                  if (lastuifrscale <= 0.2f)
+                  {
+                     break; // sanity
+                  }
+
+                  uifr.Release();
+
+                  retval.UpdateFontInfo();
+                  uifr = retval.font.ObtainRenderer();
+                  uifr.textScale = lastuifrscale;
+               }
+
+               uifr.textScale = original_uifr_scale;
+               uifr.Release();
+
+               retval.UpdateFontInfo();
+
+               retval.textScale = Math.Max(0.65f, retval.textScale * (lastuifrscale / original_uifr_scale)); // .65 min is at limit of readability
+               retval.Invalidate();
+
+               Log.Message("Resizing text scale based on string length.  textScale = " + retval.textScale.ToString());
+            }
+
             retval.normalBgSprite = "ButtonMenu";
             retval.hoveredBgSprite = "ButtonMenuHovered";
             retval.pressedBgSprite = "ButtonMenuPressed";
          }
          else
          {
-            if (mri.NormalFgTexture != null) // this triggers use of all textures
+            if (mri.SpriteInfo.NormalFgTexture != null) // this triggers use of all textures
             {
-               string[] spritenames = { mri.NormalFgSpritename, mri.NormalBgSpritename, mri.HoveredFgSpritename, mri.HoveredBgSpritename, mri.PressedFgSpritename, mri.PressedBgSpritename };
-               Texture2D[] textures = { mri.NormalFgTexture, mri.NormalBgTexture, mri.HoveredFgTexture, mri.HoveredBgTexture, mri.PressedFgTexture, mri.PressedBgTexture };
+               string[] spritenames = { mri.SpriteInfo.NormalFgSpritename, mri.SpriteInfo.NormalBgSpritename, mri.SpriteInfo.HoveredFgSpritename, mri.SpriteInfo.HoveredBgSpritename, mri.SpriteInfo.PressedFgSpritename, mri.SpriteInfo.PressedBgSpritename };
+               Texture2D[] textures = { mri.SpriteInfo.NormalFgTexture, mri.SpriteInfo.NormalBgTexture, mri.SpriteInfo.HoveredFgTexture, mri.SpriteInfo.HoveredBgTexture, mri.SpriteInfo.PressedFgTexture, mri.SpriteInfo.PressedBgTexture };
 
                retval.atlas = CreateAtlas(uniquename, spritenames, textures);
             }
@@ -160,27 +333,27 @@ namespace ModCorral
                // - try to synthesize hover/focus/etc sprite names
                // - hover = name + "hovered"
                // - pressed = name + "pressed"
-               string basename = mri.NormalFgSpritename;
+               string basename = mri.SpriteInfo.NormalFgSpritename;
 
                string hoversprite = basename + "Hovered";
                string pressedsprite = basename + "Pressed";
 
-               if (string.IsNullOrEmpty(mri.HoveredFgSpritename))
-                  mri.HoveredFgSpritename = hoversprite;
-               if (string.IsNullOrEmpty(mri.PressedFgSpritename))
-                  mri.PressedFgSpritename = pressedsprite;
+               if (string.IsNullOrEmpty(mri.SpriteInfo.HoveredFgSpritename))
+                  mri.SpriteInfo.HoveredFgSpritename = hoversprite;
+               if (string.IsNullOrEmpty(mri.SpriteInfo.PressedFgSpritename))
+                  mri.SpriteInfo.PressedFgSpritename = pressedsprite;
             }
 
-            if (string.IsNullOrEmpty(mri.HoveredBgSpritename))
-               mri.HoveredBgSpritename = "OptionBaseHovered"; // so that everybody has some hover feedback, even if they don't specify it
+            if (string.IsNullOrEmpty(mri.SpriteInfo.HoveredBgSpritename))
+               mri.SpriteInfo.HoveredBgSpritename = "OptionBaseHovered"; // so that everybody has some hover feedback, even if they don't specify it
 
             retval.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
-            retval.normalFgSprite = mri.NormalFgSpritename;
-            retval.normalBgSprite = mri.NormalBgSpritename;
-            retval.hoveredFgSprite = mri.HoveredFgSpritename;
-            retval.hoveredBgSprite = mri.HoveredBgSpritename;
-            retval.pressedFgSprite = mri.PressedFgSpritename;
-            retval.pressedBgSprite = mri.PressedBgSpritename;
+            retval.normalFgSprite = mri.SpriteInfo.NormalFgSpritename;
+            retval.normalBgSprite = mri.SpriteInfo.NormalBgSpritename;
+            retval.hoveredFgSprite = mri.SpriteInfo.HoveredFgSpritename;
+            retval.hoveredBgSprite = mri.SpriteInfo.HoveredBgSpritename;
+            retval.pressedFgSprite = mri.SpriteInfo.PressedFgSpritename;
+            retval.pressedBgSprite = mri.SpriteInfo.PressedBgSpritename;
 
             retval.spritePadding = new RectOffset(2, 2, 2, 2);
 
@@ -189,21 +362,6 @@ namespace ModCorral
          retval.tooltip = mri.HoverText;
          retval.tooltipAnchor = UITooltipAnchor.Floating;
          retval.eventTooltipShow += (component, param) => { param.tooltip.relativePosition = new Vector3(param.tooltip.relativePosition.x + 25, param.tooltip.relativePosition.y, param.tooltip.relativePosition.z); };
-
-         //retval.tooltipBox
-
-         retval.autoSize = false;
-         
-         //if (mri.NormalFgSpritename == null)
-         //{
-         //   retval.height = 33;
-         //   retval.width = (ModCorralUI.GeneralWidth - 25 - 4 * 5) - 4;
-         //}
-         //else
-         {
-            retval.height = 50;
-            retval.width = 50;
-         }
 
          retval.canFocus = false;
          retval.enabled = true;

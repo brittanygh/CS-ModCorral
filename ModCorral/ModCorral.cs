@@ -177,9 +177,18 @@ namespace ModCorral
                {
                   foreach (ModRegistrationInfo mri in CorralRegistration.RegisteredMods)
                   {
-                     if (mri.ModButton == null)
+                     if (!mri.IsButtonInitialized())
                      {
-                        mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri);
+                        if (mri is ToggleModRegistrationInfo)
+                        {
+                           ToggleModRegistrationInfo tmri = mri as ToggleModRegistrationInfo;
+
+                           tmri.ToggleButton = mcPanel.ScrollPanel.AddAToggleButton(tmri);
+                        }
+                        else
+                        {
+                           mri.ModButton = mcPanel.ScrollPanel.AddAButton(mri);
+                        }
                      }
                   }
                }
@@ -238,15 +247,8 @@ namespace ModCorral
       }
    }
 
-
-   public class ModRegistrationInfo
+   public class SpriteData
    {
-      public string ModName;
-      public string ButtonText;
-      public string HoverText;
-      public UIButton ModButton;
-      public Action<string> ClickCallback;
-
       public string NormalFgSpritename;
       public Texture2D NormalFgTexture;
       public string NormalBgSpritename;
@@ -260,7 +262,55 @@ namespace ModCorral
       public string PressedFgSpritename;
       public Texture2D PressedFgTexture;
       public string PressedBgSpritename;
-      public Texture2D PressedBgTexture;
+      public Texture2D PressedBgTexture;      
+   }
+
+   public class ModRegistrationInfo
+   {
+      public string ModName;
+      public string ButtonText;
+      public string HoverText;
+      public UIButton ModButton;
+      public Action<string> ClickCallback;
+
+      public SpriteData SpriteInfo;
+
+      public virtual bool IsButtonInitialized()
+      {
+         return ModButton != null;
+      }
+
+      public virtual void ClearButton()
+      {
+         ModButton = null;
+      }
+
+      public virtual string GetButtonText()
+      {
+         return ModButton == null ? null : ModButton.name;
+      }
+   }
+
+   public class ToggleModRegistrationInfo : ModRegistrationInfo
+   {
+      public Action<string, int> ToggleCallback;
+      public UIMultiStateButton ToggleButton;
+      public SpriteData SpriteInfo_state2; // another full set of sprites for button state 2
+
+      public override bool IsButtonInitialized()
+      {
+         return ToggleButton != null;
+      }
+
+      public override void ClearButton()
+      {
+         ToggleButton = null;
+      }
+
+      public override string GetButtonText()
+      {
+         return ToggleButton == null ? null : ToggleButton.name;
+      }
    }
 
    public class CorralRegistration : MonoBehaviour
@@ -423,6 +473,140 @@ namespace ModCorral
       // array must be of the form:
       // [0] - string name of mod
       // [1] - string button text
+      // [2] - string hover text
+      // [3] - Action<string, int> delegate.  string is modname+buttontext identifier, bool is current state flag (true=pressed, false=normal/unpressed)
+      //
+      // State 0 Sprites
+      //--------------------
+      // normal sprites, foreground and background
+      //
+      //     [4] - mandatory normalFg spritename (either builtin or custom)
+      //     [5] - optional texture2d for normalFg spritename
+      //     [6] - mandatory normalBg spritename (either builtin or custom)
+      //     [7] - optional texture2d for normalBg spritename
+      //
+      //     hovered sprites, foreground and background
+      //
+      //     [8] - mandatory hoveredFg spritename (either builtin or custom)
+      //     [9] - optional texture2d for hoveredFg spritename
+      //     [10] - mandatory hoveredBg spritename (either builtin or custom)
+      //     [11] - optional texture2d for hoveredBg spritename
+      //
+      //     pressed sprites, foreground and background
+      //
+      //     [12] - mandatory pressedFg spritename (either builtin or custom)
+      //     [13] - optional texture2d for pressedFg spritename
+      //     [14] - mandatory pressedBg spritename (either builtin or custom)
+      //     [15] - optional texture2d for pressedBg spritename    
+      //
+      // State 1 Sprites
+      //--------------------
+      // normal sprites, foreground and background
+      //
+      //     [16] - mandatory normalFg spritename (either builtin or custom)
+      //     [17] - optional texture2d for normalFg spritename
+      //     [18] - mandatory normalBg spritename (either builtin or custom)
+      //     [19] - optional texture2d for normalBg spritename
+      //
+      //     hovered sprites, foreground and background
+      //
+      //     [20] - mandatory hoveredFg spritename (either builtin or custom)
+      //     [21] - optional texture2d for hoveredFg spritename
+      //     [22] - mandatory hoveredBg spritename (either builtin or custom)
+      //     [23] - optional texture2d for hoveredBg spritename
+      //
+      //     pressed sprites, foreground and background
+      //
+      //     [24] - mandatory pressedFg spritename (either builtin or custom)
+      //     [25] - optional texture2d for pressedFg spritename
+      //     [26] - mandatory pressedBg spritename (either builtin or custom)
+      //     [27] - optional texture2d for pressedBg spritename    
+      //
+      public void RegisterModToggleButton(object[] paramArray)
+      {
+         try
+         {
+            if (paramArray == null)
+            {
+               Log.Warning("ModCorral.RegisterModToggleButton() - Mandatory parameters null, skipping registration.");
+               return;
+            }
+            if (!(paramArray.Length == 16 || paramArray.Length == 28))
+            {
+               Log.Warning(string.Format("ModCorral.RegisterModToggleButton() - Number of parameters incorrect ({0}), skipping registration.", paramArray.Length));
+               return;
+            }
+
+            string p0 = paramArray[0] as string;
+            string p1 = paramArray[1] as string;
+            string p2 = paramArray[2] as string;
+            Action<string, int> p3 = paramArray[3] as Action<string, int>;
+
+            if (p0 == null || p1 == null || p3 == null) // these 3 are mandatory
+            {
+               Log.Warning("ModCorral.RegisterModToggleButton() - Mandatory parameters not set, skipping registration.");
+               return;
+            }
+
+            SpriteData spriteInfo = new SpriteData();
+
+            if (paramArray.Length >= 16)
+            {
+               spriteInfo.NormalFgSpritename = paramArray[4] as string;
+               spriteInfo.NormalFgTexture = paramArray[5] as Texture2D;
+
+               spriteInfo.NormalBgSpritename = paramArray[6] as string;
+               spriteInfo.NormalBgTexture = paramArray[7] as Texture2D;
+
+               spriteInfo.HoveredFgSpritename = paramArray[8] as string;
+               spriteInfo.HoveredFgTexture = paramArray[9] as Texture2D;
+
+               spriteInfo.HoveredBgSpritename = paramArray[10] as string;
+               spriteInfo.HoveredBgTexture = paramArray[11] as Texture2D;
+
+               spriteInfo.PressedFgSpritename = paramArray[12] as string;
+               spriteInfo.PressedFgTexture = paramArray[13] as Texture2D;
+
+               spriteInfo.PressedBgSpritename = paramArray[14] as string;
+               spriteInfo.PressedBgTexture = paramArray[15] as Texture2D;
+            }
+
+            SpriteData spriteInfo2 = new SpriteData();
+
+            if (paramArray.Length >= 28)
+            {
+               spriteInfo2.NormalFgSpritename = paramArray[16] as string;
+               spriteInfo2.NormalFgTexture = paramArray[17] as Texture2D;
+               
+               spriteInfo2.NormalBgSpritename = paramArray[18] as string;
+               spriteInfo2.NormalBgTexture = paramArray[19] as Texture2D;
+
+               spriteInfo2.HoveredFgSpritename = paramArray[20] as string;
+               spriteInfo2.HoveredFgTexture = paramArray[21] as Texture2D;
+
+               spriteInfo2.HoveredBgSpritename = paramArray[22] as string;
+               spriteInfo2.HoveredBgTexture = paramArray[23] as Texture2D;
+
+               spriteInfo2.PressedFgSpritename = paramArray[24] as string;
+               spriteInfo2.PressedFgTexture = paramArray[25] as Texture2D;
+
+               spriteInfo2.PressedBgSpritename = paramArray[26] as string;
+               spriteInfo2.PressedBgTexture = paramArray[27] as Texture2D;
+            }
+
+            RegisterToggle(p0, p1, p2, p3, spriteInfo, spriteInfo2);
+         }
+         catch (Exception ex)
+         {
+            Log.Error(string.Format("CorralRegistration.RegisterModToggleButton() Exception: {0}", ex.Message));
+         }
+      }
+
+      // SendMessage compatible method
+      // takes one parameter, an array of objects
+      // array must be of the form:
+      // [0] - string name of mod
+      // [1] - string button text
       //
       public void DeRegisterMod(object[] paramArray)
       {
@@ -487,19 +671,27 @@ namespace ModCorral
             }
 
             // register it
-            ModRegistrationInfo newMRI = new ModRegistrationInfo { ModName = modName, ButtonText = buttonText, HoverText = hoverText, ClickCallback = callback,
-                                                                   NormalFgSpritename = normalFgSpritename,
-                                                                   NormalFgTexture = normalFgTexture,
-                                                                   NormalBgSpritename = normalBgSpritename,
-                                                                   NormalBgTexture = normalBgTexture,
-                                                                   HoveredFgSpritename = hoveredFgSpritename,
-                                                                   HoveredFgTexture = hoveredFgTexture,
-                                                                   HoveredBgSpritename = hoveredBgSpritename,
-                                                                   HoveredBgTexture = hoveredBgTexture,
-                                                                   PressedFgSpritename = pressedFgSpritename,
-                                                                   PressedFgTexture = pressedFgTexture,
-                                                                   PressedBgSpritename = pressedBgSpritename,
-                                                                   PressedBgTexture = pressedBgTexture,
+            ModRegistrationInfo newMRI = new ModRegistrationInfo
+            {
+               ModName = modName,
+               ButtonText = buttonText,
+               HoverText = hoverText,
+               ClickCallback = callback,
+               SpriteInfo = new SpriteData()
+               {
+                  NormalFgSpritename = normalFgSpritename,
+                  NormalFgTexture = normalFgTexture,
+                  NormalBgSpritename = normalBgSpritename,
+                  NormalBgTexture = normalBgTexture,
+                  HoveredFgSpritename = hoveredFgSpritename,
+                  HoveredFgTexture = hoveredFgTexture,
+                  HoveredBgSpritename = hoveredBgSpritename,
+                  HoveredBgTexture = hoveredBgTexture,
+                  PressedFgSpritename = pressedFgSpritename,
+                  PressedFgTexture = pressedFgTexture,
+                  PressedBgSpritename = pressedBgSpritename,
+                  PressedBgTexture = pressedBgTexture
+               }
             };
             
             // create new button...
@@ -516,6 +708,57 @@ namespace ModCorral
          catch (Exception ex)
          {
             Log.Error(string.Format("CorralRegistration.Register() Exception: {0}", ex.Message));
+         }
+
+         return success;
+      }
+
+      public bool RegisterToggle(string modName, string buttonText, string hoverText, Action<string, int> callback,
+         SpriteData state0Sprites,
+         SpriteData state1Sprites)
+      {
+         Log.Message(string.Format("CorralRegistration.RegisterToggle()"));
+
+         bool success = false;
+
+         try
+         {
+            foreach (ModRegistrationInfo mri in RegisteredMods)
+            {
+               if (mri.ModName == modName && mri.ButtonText == buttonText)
+               {
+                  // already registered
+                  Log.Warning(string.Format("CorralRegistration.RegisterToggle() - '{0}-{1}' already registered", modName, buttonText));
+
+                  return false;
+               }
+            }
+
+            // register it
+            ToggleModRegistrationInfo newMRI = new ToggleModRegistrationInfo
+            {
+               ModName = modName,
+               ButtonText = buttonText,
+               HoverText = hoverText,
+               ToggleCallback = callback,
+               SpriteInfo = state0Sprites,
+               SpriteInfo_state2 = state1Sprites
+            };
+
+            // create new button...
+            if (ModCorral.mcPanel != null)
+            {
+               newMRI.ToggleButton = ModCorral.mcPanel.ScrollPanel.AddAToggleButton(newMRI);
+            }
+
+            RegisteredMods.Add(newMRI);
+            success = true;
+
+            Log.Message(string.Format("CorralRegistration.RegisterToggle() added mod: '{0}-{1}'", newMRI.ModName, newMRI.ButtonText));
+         }
+         catch (Exception ex)
+         {
+            Log.Error(string.Format("CorralRegistration.RegisterToggle() Exception: {0}", ex.Message));
          }
 
          return success;
@@ -545,12 +788,12 @@ namespace ModCorral
                // registered, so remove it and destroy UIButton
                success = RegisteredMods.Remove(foundMRI);
 
-               if (success && foundMRI.ModButton != null)
+               if (success && !foundMRI.IsButtonInitialized())
                {
                   if (ModCorral.mcPanel != null)
                   {
-                     ModCorral.mcPanel.ScrollPanel.RemoveAButton(foundMRI.ModButton.name);
-                     foundMRI.ModButton = null;
+                     ModCorral.mcPanel.ScrollPanel.RemoveAButton(foundMRI.GetButtonText());
+                     foundMRI.ClearButton();
                   }                  
                }
 
@@ -583,14 +826,14 @@ namespace ModCorral
          }
 
          // add our config button
-         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, 
+         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, // need a callback...
             "Options", null,
             "OptionsBase", null,
             "OptionsHovered", null,
-            "OptionsBaseHovered", null,
+            "ToolbarIconGroup1Hovered", null, //"OptionsBaseHovered", null,
             "OptionsPressed", null,
-            "OptionsBasePressed", null
-            ); // need a callback...
+            "ToolbarIconGroup1Pressed", null //"OptionsBasePressed", null
+            ); 
 
          Log.Message("Mod Corral is awake and listening for registrations.");
       }
