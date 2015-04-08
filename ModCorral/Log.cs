@@ -10,23 +10,19 @@ namespace ModCorral
 {
    public static class Log
    {
-      public static bool DoInfos = true;
-      public static bool DoWarnings = true;
-      public static bool DoErrors = true;
-
       public static void Message(string msg)
       {
-         if (DoInfos)
+         if (ModCorralConfig.instance.LogMessages)
             DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, msg);
       }
       public static void Warning(string msg)
       {
-         if (DoWarnings)
+         if (ModCorralConfig.instance.LogWarnings)
             DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Warning, msg);
       }
       public static void Error(string msg)
       {
-         if (DoErrors)
+         if (ModCorralConfig.instance.LogErrors)
             DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, msg);
       }
    }

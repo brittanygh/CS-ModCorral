@@ -13,6 +13,7 @@ namespace ModCorral
 
    public class ModCorral : IUserMod, ILoadingExtension
    {
+      public static ConfigDialog ModCorralConfigDialog = null;
       public static UIButton mcButton = null;
       public static ModCorralUI mcPanel = null;
       public static UIPanel TabPanel = null;
@@ -24,6 +25,8 @@ namespace ModCorral
       {
          try
          {
+            ModCorralConfig.SetInstance(ModCorralConfig.Deserialize("ModCorralConfig.xml"));
+
             // determine if we are enabled or not
             if (PluginManager.instance == null || PluginManager.instance.GetPluginsInfo() == null)
             {
@@ -135,6 +138,7 @@ namespace ModCorral
                            StartingAbsPosX = mcButton.absolutePosition.x;
 
                            mcButton.tooltip = "Open Mod Corral";
+                           mcButton.eventTooltipShow += (component, param) => { param.tooltip.relativePosition = new Vector3(param.tooltip.relativePosition.x + 25, param.tooltip.relativePosition.y + 10, param.tooltip.relativePosition.z); };
                            mcButton.foregroundSpriteMode = UIForegroundSpriteMode.Scale;
                            mcButton.scaleFactor = 0.6f; // to fit a little better when using options sprites
                            mcButton.normalFgSprite = "Options";
@@ -163,6 +167,10 @@ namespace ModCorral
 
                               mcPanel.isVisible = false;
                            }
+
+                           ModCorralConfigDialog = (ConfigDialog)uiv.AddUIComponent(typeof(ConfigDialog));
+                           ModCorralConfigDialog.ParentPanel = mcPanel;
+                           ModCorralConfigDialog.isVisible = false;
                         }
                      }
                      else
@@ -191,6 +199,8 @@ namespace ModCorral
                         }
                      }
                   }
+
+                  UpdateNewCount();
                }
 
             }
@@ -198,6 +208,43 @@ namespace ModCorral
          catch (Exception ex)
          {
             Log.Error("ModCorral.OnLevelLoaded() Exception: " + ex.Message);
+         }
+      }
+
+      public static void UpdateNewCount()
+      {
+         int count = CorralRegistration.RegisteredMods.Count; // total buttons now in list
+         int lastcount = ModCorralConfig.instance.LastNumberModButtons;
+
+         if ((count > lastcount) && mcButton != null)
+         {
+            // put red count in main button
+            mcButton.text = string.Format("+{0}", count - lastcount);
+            mcButton.textColor = Color.red;
+            mcButton.hoveredTextColor = Color.red;
+            mcButton.textScale = 0.85f;
+            mcButton.textHorizontalAlignment = UIHorizontalAlignment.Right;
+            mcButton.textVerticalAlignment = UIVerticalAlignment.Top;
+
+            mcButton.tooltip = string.Format("Open Mod Corral ({0} new mods have registered)", count - lastcount);
+         }
+         else if (count < lastcount)
+         {
+            ModCorralConfig.instance.LastNumberModButtons = count;
+            ModCorralConfig.Serialize("ModCorralConfig.xml", ModCorralConfig.instance);
+         }
+      }
+
+      public static void ClearNewCount()
+      {
+         if (mcButton != null && !string.IsNullOrEmpty(mcButton.text))
+         {
+            mcButton.text = string.Empty;
+            mcButton.tooltip = "Open Mod Corral";
+
+            // save 
+            ModCorralConfig.instance.LastNumberModButtons = CorralRegistration.RegisteredMods.Count;
+            ModCorralConfig.Serialize("ModCorralConfig.xml", ModCorralConfig.instance);
          }
       }
 
@@ -234,6 +281,7 @@ namespace ModCorral
          if (mcPanel != null)
          {
             mcPanel.ShowMeHideMe();
+            ClearNewCount();
          }
       }
 
@@ -698,6 +746,7 @@ namespace ModCorral
             if (ModCorral.mcPanel != null)
             {
                newMRI.ModButton = ModCorral.mcPanel.ScrollPanel.AddAButton(newMRI);
+               ModCorral.UpdateNewCount();
             }
 
             RegisteredMods.Add(newMRI);
@@ -749,6 +798,8 @@ namespace ModCorral
             if (ModCorral.mcPanel != null)
             {
                newMRI.ToggleButton = ModCorral.mcPanel.ScrollPanel.AddAToggleButton(newMRI);
+
+               ModCorral.UpdateNewCount();
             }
 
             RegisteredMods.Add(newMRI);
@@ -826,7 +877,7 @@ namespace ModCorral
          }
 
          // add our config button
-         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", null, // need a callback...
+         CorralRegistration.instance.Register("ModCorral", "ModCorralConfig", "Open configuration for Mod Corral", (Action<string>)delegate(string s) { if (ModCorral.ModCorralConfigDialog != null) ModCorral.ModCorralConfigDialog.ShowOrHide(); },
             "Options", null,
             "OptionsBase", null,
             "OptionsHovered", null,

@@ -53,10 +53,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConfigDialog.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="ModCorral.cs" />
     <Compile Include="ModCorralUI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UICheckSubPanel.cs" />
+    <Compile Include="UIConfigTitleSubPanel.cs" />
     <Compile Include="UIScrollButtonPanel.cs" />
     <Compile Include="UITitleSubPanel.cs" />
   </ItemGroup>
